@@ -1,8 +1,12 @@
-import { action, computed, observable } from "mobx";
+import { action, computed, observable, makeObservable } from "mobx";
 import { ITodoItem } from "./types";
 import React from "react";
 
 export class TodoStore {
+  constructor() {
+    makeObservable(this);
+  }
+
   @observable protected _todoItems: ITodoItem[] = [
     {
       id: 1,
@@ -39,13 +43,13 @@ export class TodoStore {
   }
 
   @action addItem(todoContent: string) {
-    if (this._itemToEdit) {
-      this._itemToEdit!.content = todoContent;
+    if (this.itemToEdit) {
+      this.itemToEdit!.content = todoContent;
       this.itemToEdit = undefined;
       return;
     }
 
-    this._todoItems.push({
+    this.todoItems.push({
       id: Date.now(),
       content: todoContent,
       done: false,
@@ -61,7 +65,11 @@ export class TodoStore {
       (todo) => todo.id === item.id
     );
 
-    this._todoItems.splice(indexToRemove, 1);
+    this.todoItems.splice(indexToRemove, 1);
+  }
+
+  @action public setEditItem(item: ITodoItem) {
+    this.itemToEdit = item;
   }
 }
 

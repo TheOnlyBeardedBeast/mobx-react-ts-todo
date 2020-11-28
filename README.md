@@ -166,11 +166,15 @@ export interface ITodoItem {
 So now we are able to create our store:
 
 ```typescript
-import { action, computed, observable } from "mobx";
+import { action, computed, observable, makeObservable } from "mobx";
 import { ITodoItem } from "./types";
 import React from "react";
 
 export class TodoStore {
+  constructor() {
+    makeObservable(this);
+  }
+
   @observable protected _todoItems: ITodoItem[] = [
     {
       id: 1,
@@ -188,12 +192,12 @@ export class TodoStore {
     return this._todoItems;
   }
 
-  @computed public get sortedTodoItems(): ITodoItem[] {
-    return this._todoItems.sort((a, b) => a.id - b.id);
-  }
-
   public set todoItems(v: ITodoItem[]) {
     this._todoItems = v;
+  }
+
+  @computed public get sortedTodoItems(): ITodoItem[] {
+    return this.todoItems.sort((a, b) => a.id - b.id);
   }
 
   @observable protected _itemToEdit?: ITodoItem;
@@ -207,13 +211,13 @@ export class TodoStore {
   }
 
   @action addItem(todoContent: string) {
-    if (this._itemToEdit) {
-      this._itemToEdit!.content = todoContent;
-      this._itemToEdit = undefined;
+    if (this.itemToEdit) {
+      this.itemToEdit!.content = todoContent;
+      this.itemToEdit = undefined;
       return;
     }
 
-    this._todoItems.push({
+    this.todoItems.push({
       id: Date.now(),
       content: todoContent,
       done: false,
@@ -225,27 +229,32 @@ export class TodoStore {
   };
 
   @action public removeItem(item: ITodoItem) {
-    const indexToRemove = this.todoItems.findIndex(
+    const indexToRemove = this._todoItems.findIndex(
       (todo) => todo.id === item.id
     );
+
     this.todoItems.splice(indexToRemove, 1);
+  }
+
+  @action public setEditItem(item: ITodoItem) {
+    this.itemToEdit = item;
   }
 }
 ```
 
 As you can see a mobx store is simply just a `class` with properties and methods. Mobx properties are mutable.
 
+If you are using decorators please use the `makeObserver(this)` inside the stores constructor.
+
 You can even use abstraction to have a base class for multiple stores...
 
-If you want to use a property in React, you need to decorate it with the `@observable` decorator. All the observables are mutable.
+If you want to use a property in React, you need to decorate it with the `@observable` decorator. All the observables are mutable. I strict mode the observables are mutable only inside actions. If you take a risk of worse debugging processs, you can disable the strict mode and use setters to mutate the observables outsade the store.
 
 Every callable action should be decorated with the `@action` decorator.
 
 The `@computed` decorator enables us to access data from one or multiple observable properties, the computed values are recalculated if one of the observables used inside the computed property changes.
 
 The `@action` decorator enables us to change data in the store, using this decorator is not necessary, but helpful in the debugging process.
-
-Having a setter enables us to mutate our observable outside the store (in components or helper functions), the setter is an action with the action decorator.
 
 ## Make it possible to use Mobx with React
 
@@ -264,7 +273,7 @@ We create a root store, a root store can hold multiple stores. By default, the s
 For example you can achieve multi store communication with a ootstore like this:
 
 ```typescript
-class Authstore {
+class AuthStore {
   protected readonly rootStore: RootStore;
   constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
@@ -296,30 +305,28 @@ We will create 2 modules to render out our list.
 The `TodoItemList` renders a text a message if the source todos array is empty otherwise it renders a list of todo items.
 
 ```typescript
-export const TodoItemList: React.FC = () => {
+export const TodoItemList: React.FC = observer(() => {
   const { todoStore } = useStores();
 
-  return useObserver(() => {
-    if (!todoStore.todoItems.length) {
-      return <span>Please add some todos</span>;
-    }
+  if (!todoStore.todoItems.length) {
+    return <span>Please add some todos</span>;
+  }
 
-    return (
-      <ul className="todo-list">
-        {todoStore.todoItems.map((item) => (
-          <TodoItem key={item.id} item={item} />
-        ))}
-      </ul>
-    );
-  });
-};
+  return (
+    <ul className="todo-list">
+      {todoStore.sortedTodoItems.map((item) => (
+        <TodoItem key={item.id} item={item} />
+      ))}
+    </ul>
+  );
+});
 ```
 
-Inside the `TodoItem` we access our store through the `useStores` hook we created and we render everything inside a `useObserver` hook. Without the use `useObserver` hook the component would render just fine on mounting but it would not rerender on source data change.
+Inside the `TodoItem` we access our store through the `useStores` hook we created and we render everything as usual. Without the use `observer` HoC the component would render just fine on mounting but it would not rerender on source data change.
 
 We are using the `sortedTodoItems` getter, which is a `computed` property, to render our items, this getter returns the `_todoItems` observable property ordered by the todo items ids. Computed properties are recalculated when any of the used observer inside their definition changes.
 
-If you write anything that should track the changes inside the source data use it inside the `useObserver` hook.
+If you write anything that should track the changes of the source data use it inside the `observer` HoC.
 
 **TodoItem**:
 
@@ -330,37 +337,35 @@ interface TodoItemProps {
   item: ITodoItem;
 }
 
-export const TodoItem: React.FC<TodoItemProps> = ({ item }) => {
+export const TodoItem: React.FC<TodoItemProps> = observer(({ item }) => {
   const { todoStore } = useStores();
 
-  return useObserver(() => {
-    const className = "todo-list-item" + (item.done ? " done" : "");
+  const className = "todo-list-item" + (item.done ? " done" : "");
 
-    return (
-      <li className={className}>
-        <span>{item.content}</span>
-        <button onClick={onEditClick}>
-          <Edit2 size="20" color="#fff" />
-        </button>
-        <button className="green" onClick={onCheckClick}>
-          {item.done ? (
-            <SkipBack size="20" color="#fff" />
-          ) : (
-            <Check size="20" color="#fff" />
-          )}
-        </button>
-        <button className="red" onClick={onTrashClick}>
-          <Trash size="20" color="#fff" />
-        </button>
-      </li>
-    );
-  });
-};
+  return (
+    <li className={className}>
+      <span>{item.content}</span>
+      <button onClick={onEditClick}>
+        <Edit2 size="20" color="#fff" />
+      </button>
+      <button className="green" onClick={onCheckClick}>
+        {item.done ? (
+          <SkipBack size="20" color="#fff" />
+        ) : (
+          <Check size="20" color="#fff" />
+        )}
+      </button>
+      <button className="red" onClick={onTrashClick}>
+        <Trash size="20" color="#fff" />
+      </button>
+    </li>
+  );
+});
 ```
 
-We are passing an `item` property to the `TodoItem` component, but this is not just a simple object, it's an observable object. Our component would not rerender without the `useObserver` hook when on the change of the `item`.
+We are passing an `item` property to the `TodoItem` component, but this is not just a simple object, it's an observable object. Our component would not rerender without the `observer` wraper when on the change of the `item`.
 
-If we would like to ditch the `useObserver` in the `TodoItem` component, we would need to pass down primitives through the props, in our case we could pass down each property of the `item` object or a clone of our observable with the help of the `toJS` function provided by Mobx which will recursively convert an (observable) object to a javascript structure. All the observables are proxies, and they are not representing our data directly.
+If we would like to ditch the `observer` in the `TodoItem` component, we would need to pass down primitives through the props, in our case we could pass down each property of the `item` object or a clone of our observable with the help of the `toJS` function provided by Mobx which will recursively convert an (observable) object to a javascript structure. All the observables are proxies, and they are not representing our data directly.
 
 Our app currently should look like this:
 ![Result app](readmeAssets/todoItemList.png)
@@ -376,7 +381,7 @@ We can define three functions:
 After defining the functions our component will look like this:
 
 ```typescript
-export const TodoItem: React.FC<TodoItemProps> = ({ item }) => {
+export const TodoItem: React.FC<TodoItemProps> = observer(({ item }) => {
   const { todoStore } = useStores();
 
   const onCheckClick = () => {
@@ -388,37 +393,35 @@ export const TodoItem: React.FC<TodoItemProps> = ({ item }) => {
   };
 
   const onEditClick = () => {
-    todoStore.itemToEdit = item;
+    todoStore.setEditItem(item);
   };
 
-  return useObserver(() => {
-    const className = "todo-list-item" + (item.done ? " done" : "");
+  const className = "todo-list-item" + (item.done ? " done" : "");
 
-    return (
-      <li className={className}>
-        <span>{item.content}</span>
-        <button onClick={onEditClick}>
-          <Edit2 size="20" color="#fff" />
-        </button>
-        <button className="green" onClick={onCheckClick}>
-          {item.done ? (
-            <SkipBack size="20" color="#fff" />
-          ) : (
-            <Check size="20" color="#fff" />
-          )}
-        </button>
-        <button className="red" onClick={onTrashClick}>
-          <Trash size="20" color="#fff" />
-        </button>
-      </li>
-    );
-  });
-};
+  return (
+    <li className={className}>
+      <span>{item.content}</span>
+      <button onClick={onEditClick}>
+        <Edit2 size="20" color="#fff" />
+      </button>
+      <button className="green" onClick={onCheckClick}>
+        {item.done ? (
+          <SkipBack size="20" color="#fff" />
+        ) : (
+          <Check size="20" color="#fff" />
+        )}
+      </button>
+      <button className="red" onClick={onTrashClick}>
+        <Trash size="20" color="#fff" />
+      </button>
+    </li>
+  );
+});
 ```
 
-In `onCheckClick` and `onTrashClick`, we are using actions defined in our store but in `onEditClick` we directly mutate our store property, this can be done thanks to the setter which in Mobx is automatically an action. Of course, we could create an action for setting an item as an editing source in our store.
+In `onCheckClick`, `onTrashClick` and `onEditClick` , we are using actions defined in our store.
 
-All the observables are mutable, you can see it in our store methods changing object properties, arrays... When you change an observable please do it in an `@action` decorated method or with a setter.
+All the observables are mutable, you can see it in our store methods changing object properties, arrays... When you change an observable please do it always in an `@action`;
 
 Using getters and setters is not a must, you can make your observables public, and use only actions to change data, but it is a nice feature you can use.
 

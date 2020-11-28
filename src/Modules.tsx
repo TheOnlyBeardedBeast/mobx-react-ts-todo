@@ -1,7 +1,7 @@
 import React from "react";
 
 import { Trash, Check, Edit2, Plus, SkipBack } from "react-feather";
-import { useObserver } from "mobx-react";
+import { observer } from "mobx-react";
 import { when } from "mobx";
 
 import { useStores } from "./TodoStore";
@@ -11,7 +11,7 @@ interface TodoItemProps {
   item: ITodoItem;
 }
 
-export const TodoItem: React.FC<TodoItemProps> = ({ item }) => {
+export const TodoItem: React.FC<TodoItemProps> = observer(({ item }) => {
   const { todoStore } = useStores();
 
   const onCheckClick = () => {
@@ -23,50 +23,46 @@ export const TodoItem: React.FC<TodoItemProps> = ({ item }) => {
   };
 
   const onEditClick = () => {
-    todoStore.itemToEdit = item;
+    todoStore.setEditItem(item);
   };
 
-  return useObserver(() => {
-    const className = "todo-list-item" + (item.done ? " done" : "");
+  const className = "todo-list-item" + (item.done ? " done" : "");
 
-    return (
-      <li className={className}>
-        <span>{item.content}</span>
-        <button onClick={onEditClick}>
-          <Edit2 size="20" color="#fff" />
-        </button>
-        <button className="green" onClick={onCheckClick}>
-          {item.done ? (
-            <SkipBack size="20" color="#fff" />
-          ) : (
-            <Check size="20" color="#fff" />
-          )}
-        </button>
-        <button className="red" onClick={onTrashClick}>
-          <Trash size="20" color="#fff" />
-        </button>
-      </li>
-    );
-  });
-};
+  return (
+    <li className={className}>
+      <span>{item.content}</span>
+      <button onClick={onEditClick}>
+        <Edit2 size="20" color="#fff" />
+      </button>
+      <button className="green" onClick={onCheckClick}>
+        {item.done ? (
+          <SkipBack size="20" color="#fff" />
+        ) : (
+          <Check size="20" color="#fff" />
+        )}
+      </button>
+      <button className="red" onClick={onTrashClick}>
+        <Trash size="20" color="#fff" />
+      </button>
+    </li>
+  );
+});
 
-export const TodoItemList: React.FC = () => {
+export const TodoItemList: React.FC = observer(() => {
   const { todoStore } = useStores();
 
-  return useObserver(() => {
-    if (!todoStore.todoItems.length) {
-      return <span>Please add some todos</span>;
-    }
+  if (!todoStore.todoItems.length) {
+    return <span>Please add some todos</span>;
+  }
 
-    return (
-      <ul className="todo-list">
-        {todoStore.todoItems.map((item) => (
-          <TodoItem key={item.id} item={item} />
-        ))}
-      </ul>
-    );
-  });
-};
+  return (
+    <ul className="todo-list">
+      {todoStore.sortedTodoItems.map((item) => (
+        <TodoItem key={item.id} item={item} />
+      ))}
+    </ul>
+  );
+});
 
 export const TodoForm = () => {
   const { todoStore } = useStores();

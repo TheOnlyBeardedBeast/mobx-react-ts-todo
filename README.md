@@ -248,13 +248,11 @@ If you are using decorators please use the `makeObserver(this)` inside the store
 
 You can even use abstraction to have a base class for multiple stores...
 
-If you want to use a property in React, you need to decorate it with the `@observable` decorator. All the observables are mutable. I strict mode the observables are mutable only inside actions. If you take a risk of worse debugging processs, you can disable the strict mode and use setters to mutate the observables outsade the store.
-
-Every callable action should be decorated with the `@action` decorator.
+If you want to use a property in React, you need to decorate it with the `@observable` decorator. All the observables are mutable. If strict mode the observables are mutable only inside actions. If you take a risk of worse debugging processs, you can disable the strict mode and use setters to mutate the observables outsade the store.
 
 The `@computed` decorator enables us to access data from one or multiple observable properties, the computed values are recalculated if one of the observables used inside the computed property changes.
 
-The `@action` decorator enables us to change data in the store, using this decorator is not necessary, but helpful in the debugging process.
+Every callable action should be decorated with the `@action` decorator. The `@action` decorator enables us to change data in the store, using this decorator is not necessary, but helpful in the debugging process.
 
 ## Make it possible to use Mobx with React
 
@@ -324,7 +322,7 @@ export const TodoItemList: React.FC = observer(() => {
 
 Inside the `TodoItem` we access our store through the `useStores` hook we created and we render everything as usual. Without the use `observer` HoC the component would render just fine on mounting but it would not rerender on source data change.
 
-We are using the `sortedTodoItems` getter, which is a `computed` property, to render our items, this getter returns the `_todoItems` observable property ordered by the todo items ids. Computed properties are recalculated when any of the used observer inside their definition changes.
+We are using the `sortedTodoItems` getter, which is a `computed` property, to render our items, this getter returns the `_todoItems` observable property ordered by the todo items ids. Computed properties are recalculated when any of the tracked observable inside their definition changes.
 
 If you write anything that should track the changes of the source data use it inside the `observer` HoC.
 
@@ -363,7 +361,7 @@ export const TodoItem: React.FC<TodoItemProps> = observer(({ item }) => {
 });
 ```
 
-We are passing an `item` property to the `TodoItem` component, but this is not just a simple object, it's an observable object. Our component would not rerender without the `observer` wraper when on the change of the `item`.
+We are passing an `item` property to the `TodoItem` component, but this is not just a simple object, it's an observable object. Our component would not rerender without the `observer` HoC on the change of the `item`.
 
 If we would like to ditch the `observer` in the `TodoItem` component, we would need to pass down primitives through the props, in our case we could pass down each property of the `item` object or a clone of our observable with the help of the `toJS` function provided by Mobx which will recursively convert an (observable) object to a javascript structure. All the observables are proxies, and they are not representing our data directly.
 
@@ -512,3 +510,4 @@ After that we should have a fully working todo application.
 ## Thank you all
 
 source code available at: https://github.com/TheOnlyBeardedBeast/mobx-react-ts-todo
+try it out at: https://theonlybeardedbeast.github.io/mobx-react-ts-todo/

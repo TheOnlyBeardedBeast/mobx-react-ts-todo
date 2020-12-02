@@ -197,7 +197,7 @@ export class TodoStore {
   }
 
   @computed public get sortedTodoItems(): ITodoItem[] {
-    return this.todoItems.sort((a, b) => a.id - b.id);
+    return this.todoItems.slice().sort((a, b) => a.id - b.id);
   }
 
   @observable protected _itemToEdit?: ITodoItem;

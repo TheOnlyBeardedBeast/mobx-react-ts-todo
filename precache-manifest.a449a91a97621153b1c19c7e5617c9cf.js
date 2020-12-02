@@ -1,10 +1,10 @@
 self.__precacheManifest = (self.__precacheManifest || []).concat([
   {
-    "revision": "58943aa751385e76fe72e8f235330684",
+    "revision": "076c3a9468eeab2009087ddf2baaf1a2",
     "url": "/mobx-react-ts-todo/index.html"
   },
   {
-    "revision": "ddfd008d016ce936cb0b",
+    "revision": "0cbee4c7a106f1863814",
     "url": "/mobx-react-ts-todo/static/css/main.91343ceb.chunk.css"
   },
   {
@@ -16,8 +16,8 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/mobx-react-ts-todo/static/js/2.d74573be.chunk.js.LICENSE.txt"
   },
   {
-    "revision": "ddfd008d016ce936cb0b",
-    "url": "/mobx-react-ts-todo/static/js/main.c5ab6248.chunk.js"
+    "revision": "0cbee4c7a106f1863814",
+    "url": "/mobx-react-ts-todo/static/js/main.08946c85.chunk.js"
   },
   {
     "revision": "3a2f81869f02be4f0ea0",

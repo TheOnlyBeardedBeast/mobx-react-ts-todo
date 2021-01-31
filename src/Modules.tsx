@@ -2,7 +2,7 @@ import React from "react";
 
 import { Trash, Check, Edit2, Plus, SkipBack } from "react-feather";
 import { observer } from "mobx-react";
-import { when } from "mobx";
+import { reaction } from "mobx";
 
 import { useStores } from "./TodoStore";
 import { ITodoItem } from "./types";
@@ -72,23 +72,17 @@ export const TodoForm = () => {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    // const input = (event.target as HTMLElement).querySelector<HTMLInputElement>(
-    //   "[name=todo-content]"
-    // );
-
     if (input.current && input.current.value) {
       todoStore.addItem(input.current.value);
       input.current.value = "";
     }
   };
 
+
   React.useEffect(() => {
-    when(
-      () => !!todoStore.itemToEdit,
+    reaction(
+      () => todoStore.itemToEdit,
       () => {
-        // const input = document
-        //   .querySelector<HTMLFormElement>("form")
-        //   ?.querySelector<HTMLInputElement>("[name=todo-content]");
         if (input.current) {
           input.current.value = todoStore.itemToEdit!.content;
         }

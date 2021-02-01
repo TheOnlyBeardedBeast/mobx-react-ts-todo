@@ -195,50 +195,6 @@ export class TodoStore {
   public set todoItems(v: ITodoItem[]) {
     this._todoItems = v;
   }
-
-  @computed public get sortedTodoItems(): ITodoItem[] {
-    return this.todoItems.slice().sort((a, b) => a.id - b.id);
-  }
-
-  @observable protected _itemToEdit?: ITodoItem;
-
-  public get itemToEdit(): ITodoItem | undefined {
-    return this._itemToEdit;
-  }
-
-  public set itemToEdit(v: ITodoItem | undefined) {
-    this._itemToEdit = v;
-  }
-
-  @action addItem(todoContent: string) {
-    if (this.itemToEdit) {
-      this.itemToEdit!.content = todoContent;
-      this.itemToEdit = undefined;
-      return;
-    }
-
-    this.todoItems.push({
-      id: Date.now(),
-      content: todoContent,
-      done: false,
-    });
-  }
-
-  @action toggleState = (item: ITodoItem) => {
-    item.done = !item.done;
-  };
-
-  @action public removeItem(item: ITodoItem) {
-    const indexToRemove = this._todoItems.findIndex(
-      (todo) => todo.id === item.id
-    );
-
-    this.todoItems.splice(indexToRemove, 1);
-  }
-
-  @action public setEditItem(item: ITodoItem) {
-    this.itemToEdit = item;
-  }
 }
 ```
 
@@ -248,11 +204,11 @@ If you are using decorators please use the `makeObserver(this)` inside the store
 
 You can even use abstraction to have a base class for multiple stores...
 
-If you want to use a property in React, you need to decorate it with the `@observable` decorator. All the observables are mutable. If strict mode the observables are mutable only inside actions. If you take a risk of worse debugging processs, you can disable the strict mode and use setters to mutate the observables outsade the store.
+If you want to use a property in React, you need to decorate it with the `@observable` decorator. All the observables are mutable. If strict mode the observables are mutable only inside actions. If you take a risk of worse debugging processs, you can disable the strict mode and use setters to mutate the observables outside the store.
 
 The `@computed` decorator enables us to access data from one or multiple observable properties, the computed values are recalculated if one of the observables used inside the computed property changes.
 
-Every callable action should be decorated with the `@action` decorator. The `@action` decorator enables us to change data in the store, using this decorator is not necessary, but helpful in the debugging process.
+For now we simply created `_todoItems` with default values and a getter and setter for our todo store
 
 ## Make it possible to use Mobx with React
 
@@ -303,6 +259,13 @@ We will create 2 modules to render out our list.
 The `TodoItemList` renders a text a message if the source todos array is empty otherwise it renders a list of todo items.
 
 ```typescript
+import React from "react";
+
+import { observer } from "mobx-react";
+
+import { useStores } from "./TodoStore";
+
+
 export const TodoItemList: React.FC = observer(() => {
   const { todoStore } = useStores();
 
@@ -322,6 +285,20 @@ export const TodoItemList: React.FC = observer(() => {
 
 Inside the `TodoItem` we access our store through the `useStores` hook we created and we render everything as usual. Without the use `observer` HoC the component would render just fine on mounting but it would not rerender on source data change.
 
+Now we will go back to our TodoStore and add the new getter `sortedTodoItems`.
+
+```typescript
+...
+
+export class TodoStore {
+  ...
+
+  @computed public get sortedTodoItems(): ITodoItem[] {
+    return this.todoItems.slice().sort((a, b) => a.id - b.id);
+  }
+}
+```
+
 We are using the `sortedTodoItems` getter, which is a `computed` property, to render our items, this getter returns the `_todoItems` observable property ordered by the todo items ids. Computed properties are recalculated when any of the tracked observable inside their definition changes.
 
 If you write anything that should track the changes of the source data use it inside the `observer` HoC.
@@ -331,35 +308,44 @@ If you write anything that should track the changes of the source data use it in
 The `TodoItem` component renders our todo item and uses its actions. Accessing the store and rendering the data is based on the same principles as in the `TodoItemList` component.
 
 ```typescript
+import React from "react";
+
+import { Trash, Check, Edit2, SkipBack } from "react-feather";
+import { observer } from "mobx-react";
+import { reaction } from "mobx";
+
+import { useStores } from "./TodoStore";
+import { ITodoItem } from "./types";
+
 interface TodoItemProps {
   item: ITodoItem;
 }
 
 export const TodoItem: React.FC<TodoItemProps> = observer(({ item }) => {
-  const { todoStore } = useStores();
-
   const className = "todo-list-item" + (item.done ? " done" : "");
 
   return (
     <li className={className}>
       <span>{item.content}</span>
-      <button onClick={onEditClick}>
+      <button>
         <Edit2 size="20" color="#fff" />
       </button>
-      <button className="green" onClick={onCheckClick}>
+      <button className="green">
         {item.done ? (
           <SkipBack size="20" color="#fff" />
         ) : (
           <Check size="20" color="#fff" />
         )}
       </button>
-      <button className="red" onClick={onTrashClick}>
+      <button className="red">
         <Trash size="20" color="#fff" />
       </button>
     </li>
   );
 });
 ```
+
+
 
 We are passing an `item` property to the `TodoItem` component, but this is not just a simple object, it's an observable object. Our component would not rerender without the `observer` HoC on the change of the `item`.
 
@@ -390,6 +376,141 @@ export const TodoItem: React.FC<TodoItemProps> = observer(({ item }) => {
     todoStore.removeItem(item);
   };
 
+  const className = "todo-list-item" + (item.done ? " done" : "");
+
+  return (
+    <li className={className}>
+      <span>{item.content}</span>
+      <button>
+        <Edit2 size="20" color="#fff" />
+      </button>
+      <button className="green" onClick={onCheckClick}>
+        {item.done ? (
+          <SkipBack size="20" color="#fff" />
+        ) : (
+          <Check size="20" color="#fff" />
+        )}
+      </button>
+      <button className="red" onClick={onTrashClick}>
+        <Trash size="20" color="#fff" />
+      </button>
+    </li>
+  );
+});
+```
+
+In `onCheckClick` and `onTrashClick`, we are using actions defined in our store like this.
+
+```typescript
+...
+
+export class TodoStore {
+  ...
+
+  @action toggleState = (item: ITodoItem) => {
+    item.done = !item.done;
+  };
+
+  @action public removeItem(item: ITodoItem) {
+    const indexToRemove = this._todoItems.findIndex(
+      (todo) => todo.id === item.id
+    );
+
+    this.todoItems.splice(indexToRemove, 1);
+  }
+}
+```
+
+Every callable action should be decorated with the `@action` decorator. The `@action` decorator enables us to change data in the store. Using this decorator is not necessary, but helpful in the debugging process.
+
+All the observables are mutable, you can see it in our store methods changing object properties, arrays... When you change an observable please do it always in an `@action`;
+
+Using getters and setters is not a must, you can make your observables public, and use only actions to change data, but it is a nice feature you can use.
+
+We could even rewrite our actions to `closures` so they could be used directly in the component.
+
+Example:
+
+```typescript
+// In store
+// ...
+@action toggleState = (item: ITodoItem) => () => {
+  item.done = !item.done;
+};
+// ...
+// In component
+// ...
+<button className="green" onClick={projectstore.toggleState(item)}>
+// ...
+```
+
+Never pass store methods through props to child components, the calling, the call would not have the right context and the method would not be available to access any observable.
+
+## Add a new item to the store and enable editing
+
+For adding a new item to our store we will create a new component.
+
+```typescript
+export const TodoForm = () => {
+  const { todoStore } = useStores();
+
+  const input = React.useRef<HTMLInputElement | null>(null);
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (input.current && input.current.value) {
+      todoStore.addItem(input.current.value);
+      input.current.value = "";
+    }
+  };
+
+  return (
+    <form className="todo-form" onSubmit={handleSubmit}>
+      <input
+        ref={input}
+        type="text"
+        name="todo-content"
+        className="todo-form-input"
+      />
+      <button type="submit">
+        <Plus size="20" color="#fff" />
+      </button>
+    </form>
+  );
+};
+```
+
+After that we update our `TodoStore`
+
+```typescript
+...
+
+export class TodoStore {
+  ...
+
+  @action addItem(todoContent: string) {
+    this.todoItems.push({
+      id: Date.now(),
+      content: todoContent,
+      done: false,
+    });
+  }
+}
+```
+
+The result of this component looks like this:
+![Result app](readmeAssets/todoItemInput.png)
+
+
+Basically, it is just a simple form, which on submitting calls the `addItem` action of our store. The `addItem` action adds a new todo to our array.
+
+To add edit functionality first we need to update our `TodoItem` component with a new function `onEditClick`
+
+```typescript
+export const TodoItem: React.FC<TodoItemProps> = observer(({ item }) => {
+  ...
+
   const onEditClick = () => {
     todoStore.setEditItem(item);
   };
@@ -417,53 +538,53 @@ export const TodoItem: React.FC<TodoItemProps> = observer(({ item }) => {
 });
 ```
 
-In `onCheckClick`, `onTrashClick` and `onEditClick` , we are using actions defined in our store.
-
-All the observables are mutable, you can see it in our store methods changing object properties, arrays... When you change an observable please do it always in an `@action`;
-
-Using getters and setters is not a must, you can make your observables public, and use only actions to change data, but it is a nice feature you can use.
-
-We could even rewrite our actions to `closures` so they could be used directly in the component.
-
-Example:
+After that we will update our `TodoStore`
 
 ```typescript
-// In store
-// ...
-@action toggleState = (item: ITodoItem) => () => {
-  item.done = !item.done;
-};
-// ...
-// In component
-// ...
-<button className="green" onClick={projectstore.toggleState(item)}>
-// ...
+...
+
+export class TodoStore {
+  ...
+
+  @observable protected _itemToEdit?: ITodoItem;
+
+  public get itemToEdit(): ITodoItem | undefined {
+    return this._itemToEdit;
+  }
+
+  public set itemToEdit(v: ITodoItem | undefined) {
+    this._itemToEdit = v;
+  }
+
+  @action public setEditItem(item: ITodoItem) {
+    this.itemToEdit = item;
+  }
+
+  @action addItem(todoContent: string) {
+     if (this.itemToEdit) {
+      this.itemToEdit!.content = todoContent;
+      this.itemToEdit = undefined;
+      return;
+    }
+
+    this.todoItems.push({
+      id: Date.now(),
+      content: todoContent,
+      done: false,
+    });
+  }
+}
 ```
 
-Never pass store methods through props to child components, the calling, the call would not have the right context and the method would not be available to access any observable.
-
-## Add a new item to the store
-
-For adding a new item to our store we will create a new component.
+And finally we add reaction to our `TodoForm` component.
 
 ```typescript
 export const TodoForm = () => {
-  const { todoStore } = useStores();
-
-  const input = React.useRef<HTMLInputElement | null>(null);
-
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (input.current && input.current.value) {
-      todoStore.addItem(input.current.value);
-      input.current.value = "";
-    }
-  };
+  ...
 
   React.useEffect(() => {
-    when(
-      () => !!todoStore.itemToEdit,
+    reaction(
+      () => todoStore.itemToEdit,
       () => {
         if (input.current) {
           input.current.value = todoStore.itemToEdit!.content;
@@ -472,26 +593,9 @@ export const TodoForm = () => {
     );
   }, []);
 
-  return (
-    <form className="todo-form" onSubmit={handleSubmit}>
-      <input
-        ref={input}
-        type="text"
-        name="todo-content"
-        className="todo-form-input"
-      />
-      <button type="submit">
-        <Plus size="20" color="#fff" />
-      </button>
-    </form>
-  );
+  ...
 };
 ```
-
-The result of this component looks like this:
-![Result app](readmeAssets/todoItemInput.png)
-
-Basically, it is just a simple form, which on submitting calls the `addItem` action of our store. The `addItem` action adds a new todo to our array if there is no `itemToEdit` specified otherwise it updates the value of the specified item.
 
 When we click to edit on a todo item we set the `itemToEdit` observable, we cant use observables in a `useEffect` hook. To run side effects we have to use reactions.
 

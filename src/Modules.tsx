@@ -31,7 +31,7 @@ export const TodoItem: React.FC<TodoItemProps> = observer(({ item }) => {
   return (
     <li className={className}>
       <span>{item.content}</span>
-      <button onClick={onEditClick}>
+      <button onClick={onEditClick} disabled={item.done}>
         <Edit2 size="20" color="#fff" />
       </button>
       <button className="green" onClick={onCheckClick}>
@@ -83,8 +83,8 @@ export const TodoForm = () => {
     reaction(
       () => todoStore.itemToEdit,
       () => {
-        if (input.current) {
-          input.current.value = todoStore.itemToEdit!.content;
+        if (input.current && todoStore.itemToEdit) {
+          input.current.value = todoStore.itemToEdit.content;
         }
       }
     );

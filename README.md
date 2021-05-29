@@ -175,7 +175,7 @@ export class TodoStore {
     makeObservable(this);
   }
 
-  @observable protected _todoItems: ITodoItem[] = [
+  @observable public todoItems: ITodoItem[] = [
     {
       id: 1,
       content: "Ditch redux",
@@ -188,12 +188,8 @@ export class TodoStore {
     },
   ];
 
-  @computed public get todoItems(): ITodoItem[] {
-    return this._todoItems;
-  }
-
-  public set todoItems(v: ITodoItem[]) {
-    this._todoItems = v;
+  @action public  setTodoItems = (v: ITodoItem[]) => {
+    this.todoItems = v;
   }
 }
 ```
@@ -206,9 +202,7 @@ You can even use abstraction to have a base class for multiple stores...
 
 If you want to use a property in React, you need to decorate it with the `@observable` decorator. All the observables are mutable. If strict mode the observables are mutable only inside actions. If you take a risk of worse debugging processs, you can disable the strict mode and use setters to mutate the observables outside the store.
 
-The `@computed` decorator enables us to access data from one or multiple observable properties, the computed values are recalculated if one of the observables used inside the computed property changes.
-
-For now we simply created `_todoItems` with default values and a getter and setter for our todo store
+For now we simply created `todoItems` with default values and a getter and setter for our todo store
 
 ## Make it possible to use Mobx with React
 
@@ -299,7 +293,9 @@ export class TodoStore {
 }
 ```
 
-We are using the `sortedTodoItems` getter, which is a `computed` property, to render our items, this getter returns the `_todoItems` observable property ordered by the todo items ids. Computed properties are recalculated when any of the tracked observable inside their definition changes.
+The `@computed` decorator enables us to access data from one or multiple observable properties, the computed values are recalculated if one of the observables used inside the computed property changes.
+
+We are using the `sortedTodoItems` getter, which is a `computed` property, to render our items, this getter returns the `todoItems` observable property ordered by the todo items ids. Computed properties are recalculated when any of the tracked observable inside their definition changes.
 
 If you write anything that should track the changes of the source data use it inside the `observer` HoC.
 
@@ -360,7 +356,7 @@ We can define three functions:
 
 - onCheckClick (toggles the todo state [done=true|false])
 - onTrashClick (removes the item from the store)
-- onEditClick (sets the item es editing source)
+- onEditClick (sets the item as editing source)
 
 After defining the functions our component will look like this:
 
@@ -412,7 +408,7 @@ export class TodoStore {
   };
 
   @action public removeItem(item: ITodoItem) {
-    const indexToRemove = this._todoItems.findIndex(
+    const indexToRemove = this.todoItems.findIndex(
       (todo) => todo.id === item.id
     );
 
@@ -520,7 +516,7 @@ export const TodoItem: React.FC<TodoItemProps> = observer(({ item }) => {
   return (
     <li className={className}>
       <span>{item.content}</span>
-      <button onClick={onEditClick}>
+      <button onClick={onEditClick} disabled={item.done}>
         <Edit2 size="20" color="#fff" />
       </button>
       <button className="green" onClick={onCheckClick}>
@@ -546,23 +542,15 @@ After that we will update our `TodoStore`
 export class TodoStore {
   ...
 
-  @observable protected _itemToEdit?: ITodoItem;
+  @observable public itemToEdit?: ITodoItem;
 
-  public get itemToEdit(): ITodoItem | undefined {
-    return this._itemToEdit;
-  }
-
-  public set itemToEdit(v: ITodoItem | undefined) {
-    this._itemToEdit = v;
-  }
-
-  @action public setEditItem(item: ITodoItem) {
-    this.itemToEdit = item;
+  @action public setItemToEdit = (v: ITodoItem | undefined)  => {
+    this.itemToEdit = v;
   }
 
   @action addItem(todoContent: string) {
      if (this.itemToEdit) {
-      this.itemToEdit!.content = todoContent;
+      this.itemToEdit.content = todoContent;
       this.itemToEdit = undefined;
       return;
     }
@@ -586,8 +574,8 @@ export const TodoForm = () => {
     reaction(
       () => todoStore.itemToEdit,
       () => {
-        if (input.current) {
-          input.current.value = todoStore.itemToEdit!.content;
+        if (input.current && todoStore.itemToEdit) {
+          input.current.value = todoStore.itemToEdit.content;
         }
       }
     );
@@ -607,10 +595,41 @@ We have three different reactions in Mobx:
 
 You can define reactions in a store or the components. If you define reactions in components always use them inside a `useEffect` hook with an empty dependency list.
 
-We are using a `when` reaction where we check if the `_itemToEdit` observable is defined (through the `itemToEdit` getter). When the condition result is true we replace the input value with the value of the item content.
+We are using a `when` reaction where we check if the `itemToEdit` observable is defined (through the `itemToEdit` getter). When the condition result is true we replace the input value with the value of the item content.
+## Persisting data
 
-After that we should have a fully working todo application.
+Last but not least, to have a fully working todo app we need to persisnt data. Luckally this is exeptionally easy with MobX Persist Store.
 
+First we need to install the library
+
+```
+  yarn add mobx-persist-store
+```
+
+After the installation inside our TodoStore constructor we need to add only one function `makePersistable`:
+
+```typescript
+...
+import { makePersistable } from "mobx-persist-store";
+
+export class TodoStore {
+  constructor() {
+    makeObservable(this);
+
+    makePersistable(this, {
+      name: "TodoStore",
+      properties: ["todoItems"],
+      storage: localStorage
+    });
+  }
+
+...
+}
+```
+
+First argument of `makePersistable` is reference to the store. Second argument is `StorageOptions` object where name is the `name` of the store you want to persist and `properties` is an array with observables you want to persist. Last argument is the storage itself which may be localStorage, sessionStorage, localForage, ect. If you would like to develop an mobile app using React Native you may use AsyncStorage instead of localStorage
+
+After that we should have a fully working todo application!
 ## Thank you all
 
 source code available at: https://github.com/TheOnlyBeardedBeast/mobx-react-ts-todo

@@ -1,13 +1,20 @@
 import { action, computed, observable, makeObservable } from "mobx";
+import { makePersistable } from "mobx-persist-store";
 import { ITodoItem } from "./types";
 import React from "react";
 
 export class TodoStore {
   constructor() {
     makeObservable(this);
+
+    makePersistable(this, {
+      name: "TodoStore",
+      properties: ["todoItems"],
+      storage: localStorage
+    });
   }
 
-  @observable protected _todoItems: ITodoItem[] = [
+  @observable public todoItems: ITodoItem[] = [
     {
       id: 1,
       content: "Ditch redux",
@@ -20,31 +27,23 @@ export class TodoStore {
     },
   ];
 
-  @computed public get todoItems(): ITodoItem[] {
-    return this._todoItems;
-  }
-
-  public set todoItems(v: ITodoItem[]) {
-    this._todoItems = v;
+  @action public  setTodoItems = (v: ITodoItem[]) => {
+    this.todoItems = v;
   }
 
   @computed public get sortedTodoItems(): ITodoItem[] {
     return this.todoItems.slice().sort((a, b) => a.id - b.id);
   }
 
-  @observable protected _itemToEdit?: ITodoItem;
+  @observable public itemToEdit?: ITodoItem;
 
-  public get itemToEdit(): ITodoItem | undefined {
-    return this._itemToEdit;
-  }
-
-  public set itemToEdit(v: ITodoItem | undefined) {
-    this._itemToEdit = v;
+  @action public setItemToEdit = (v: ITodoItem | undefined)  => {
+    this.itemToEdit = v;
   }
 
   @action addItem(todoContent: string) {
     if (this.itemToEdit) {
-      this.itemToEdit!.content = todoContent;
+      this.itemToEdit.content = todoContent;
       this.itemToEdit = undefined;
       return;
     }
@@ -61,7 +60,7 @@ export class TodoStore {
   };
 
   @action public removeItem(item: ITodoItem) {
-    const indexToRemove = this._todoItems.findIndex(
+    const indexToRemove = this.todoItems.findIndex(
       (todo) => todo.id === item.id
     );
 

@@ -598,7 +598,7 @@ You can define reactions in a store or the components. If you define reactions i
 We are using a `when` reaction where we check if the `itemToEdit` observable is defined (through the `itemToEdit` getter). When the condition result is true we replace the input value with the value of the item content.
 ## Persisting data
 
-Last but not least, to have a fully working todo app we need to persisnt data. Luckally this is exeptionally easy with MobX Persist Store.
+Last but not least, to have a fully working todo app we need to persisnt data. Luckilly this is exeptionally easy with MobX Persist Store.
 
 First we need to install the library
 
